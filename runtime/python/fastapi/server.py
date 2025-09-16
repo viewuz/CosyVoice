@@ -86,10 +86,10 @@ if __name__ == '__main__':
 
     try:
         cosyvoice = CosyVoice2('iic/CosyVoice2-0.5B',
-                               load_jit=True,  # JIT 컴파일 활성화
-                               load_trt=True,  # TensorRT 4배 가속
+                               load_jit=False,  # JIT 컴파일 활성화
+                               load_trt=False,  # TensorRT 4배 가속
                                load_vllm=False,  # vLLM 병렬 처리
-                               fp16=True)
+                               fp16=False)
     except Exception:
         raise TypeError('no valid model_type!')
 
