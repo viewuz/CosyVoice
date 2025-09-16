@@ -60,7 +60,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
-        cosyvoice = CosyVoice2('iic/CosyVoice2-0.5B', load_jit=False, load_trt=False, load_vllm=False, fp16=False)
+        cosyvoice = CosyVoice2('iic/CosyVoice2-0.5B',
+                               load_jit=True,  # JIT 컴파일 활성화
+                               load_trt=True,  # TensorRT 4배 가속
+                               load_vllm=True,  # vLLM 병렬 처리
+                               fp16=True)
     except Exception:
         raise TypeError('no valid model_type!')
 
