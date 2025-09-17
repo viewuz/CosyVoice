@@ -128,9 +128,10 @@ if __name__ == '__main__':
         cosyvoice = CosyVoice2(
             'pretrained_models/CosyVoice2-0.5B',
             load_jit=False,
-            load_trt=False,
+            load_trt=True,
             load_vllm=False,
-            fp16=False
+            fp16=True,
+            trt_concurrent=2
         )
 
     except Exception:
