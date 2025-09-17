@@ -3,8 +3,8 @@ import sys
 import argparse
 import logging
 
-
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +14,16 @@ import uvicorn
 import numpy as np
 import jwt
 
+from modelscope import snapshot_download
+
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append('{}/../../..'.format(ROOT_DIR))
 sys.path.append('{}/../../../third_party/Matcha-TTS'.format(ROOT_DIR))
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
+
+import torchaudio
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 ALGORITHM = "HS256"
@@ -36,6 +41,7 @@ app.add_middleware(
 cosyvoice: CosyVoice2
 security = HTTPBearer()
 
+
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """JWT 토큰 검증"""
     try:
@@ -45,13 +51,15 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"Authenticate": "Bearer"},
         )
+
 
 def generate_data(model_output):
     for i in model_output:
         tts_audio = (i['tts_speech'].numpy() * (2 ** 15)).astype(np.int16).tobytes()
         yield tts_audio
+
 
 @app.post("/add_zero_shot_spk")
 async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = Form(), prompt_wav: UploadFile = File(),
@@ -78,6 +86,8 @@ async def inference_instruct2(tts_text: str = Form(), instruct_text: str = Form(
 
 
 if __name__ == '__main__':
+    snapshot_download('iic/CosyVoice2-0.5B', local_dir='pretrained_models/CosyVoice2-0.5B')
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--port',
                         type=int,
@@ -85,11 +95,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
-        cosyvoice = CosyVoice2('iic/CosyVoice2-0.5B',
-                               load_jit=False,  # JIT 컴파일 활성화
-                               load_trt=False,  # TensorRT 4배 가속
-                               load_vllm=False,  # vLLM 병렬 처리
-                               fp16=False)
+        cosyvoice = CosyVoice2(
+            'pretrained_models/CosyVoice2-0.5B',
+            load_jit=False,
+            load_trt=True,
+            load_vllm=False,
+            fp16=False,
+            trt_concurrent=3
+        )
+
     except Exception:
         raise TypeError('no valid model_type!')
 
