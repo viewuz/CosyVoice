@@ -4,7 +4,6 @@ import argparse
 import logging
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-import datetime
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,7 +103,6 @@ if __name__ == '__main__':
     try:
         payload = {
             "sub": "user",
-            "iat": int(datetime.utcnow().timestamp()),  # 발급 시간
         }
 
         token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
