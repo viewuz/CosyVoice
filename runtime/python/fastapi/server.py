@@ -112,7 +112,7 @@ async def inference_zero_shot(tts_text: str = Form(),
         '',
         '',
         zero_shot_spk_id=zero_shot_spk_id,
-        stream=True,
+        stream=False,
         speed=speed
     )):
         torchaudio.save('zero_shot_{}_{}.wav'.format(i, zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
