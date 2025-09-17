@@ -67,11 +67,7 @@ def generate_data(model_output):
 async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = Form(), prompt_wav: UploadFile = File(),
                             token_payload: dict = Depends(verify_token)
                             ):
-    # 1) 목소리 모델에 추가
-    prompt_speech_16k = load_wav(str(prompt_wav.file), 16000)
-    assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
-
-    logging.info(f"Added spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
+    logging.info(f"Add spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
     save_audio_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.wav"
     save_text_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.txt"
 
@@ -80,6 +76,9 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
         shutil.copyfileobj(prompt_wav.file, buffer)
 
     save_text_path.write_text(prompt_text, encoding="utf-8")
+
+    prompt_speech_16k = load_wav(str(save_audio_path), 16000)
+    assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
 
     logging.info(f"Saved spk: {zero_shot_spk_id}")
 
