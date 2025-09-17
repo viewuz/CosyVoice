@@ -39,4 +39,3 @@ uvicorn==0.30.0
 wetext==0.0.4
 wget==3.2
 PyJWT==2.10.1
-vllm==0.9.0
