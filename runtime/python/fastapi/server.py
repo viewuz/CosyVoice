@@ -100,7 +100,7 @@ if __name__ == '__main__':
             load_jit=False,
             load_trt=True,
             load_vllm=False,
-            fp16=False,
+            fp16=True,
             trt_concurrent=3
         )
 
