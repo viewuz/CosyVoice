@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 import argparse
@@ -104,6 +105,19 @@ async def inference_zero_shot(tts_text: str = Form(),
         stream=True,
         speed=speed
     )
+
+    async def save_local():
+        for i, j in enumerate(cosyvoice.inference_zero_shot(
+                tts_text,
+                '',
+                '',
+                zero_shot_spk_id=zero_shot_spk_id,
+                stream=False,
+                speed=speed
+        )):
+            torchaudio.save('zero_shot_{}_{}.wav'.format(i, zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
+
+    a = asyncio.run(save_local())
 
     return StreamingResponse(generate_data(model_output))
 
