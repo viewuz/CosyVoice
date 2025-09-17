@@ -69,7 +69,7 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
 
 
 @app.post("/inference_zero_shot")
-async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = "",
+async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = Form(),
                               token_payload: dict = Depends(verify_token)
                               ):
     model_output = cosyvoice.inference_zero_shot(tts_text, '', '', zero_shot_spk_id=zero_shot_spk_id)
@@ -77,7 +77,7 @@ async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = ""
 
 
 @app.post("/inference_instruct")
-async def inference_instruct2(tts_text: str = Form(), instruct_text: str = Form(), zero_shot_spk_id: str = "",
+async def inference_instruct2(tts_text: str = Form(), instruct_text: str = Form(), zero_shot_spk_id: str = Form(),
                               token_payload: dict = Depends(verify_token)
                               ):
     model_output = cosyvoice.inference_instruct2(tts_text, instruct_text, "", zero_shot_spk_id=zero_shot_spk_id)
