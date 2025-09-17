@@ -107,6 +107,17 @@ async def inference_zero_shot(tts_text: str = Form(),
         speed=speed
     )
 
+    for i, j in enumerate(cosyvoice.inference_zero_shot(
+        tts_text,
+        '',
+        '',
+        zero_shot_spk_id=zero_shot_spk_id,
+        stream=True,
+        speed=speed
+    )):
+        torchaudio.save('zero_shot_{}_{}.wav'.format(i, zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
+
+
     return StreamingResponse(generate_data(model_output))
 
 
@@ -126,16 +137,6 @@ async def inference_instruct2(tts_text: str = Form(),
         speed=speed
     )
 
-    for i, j in enumerate(cosyvoice.inference_instruct2(
-        tts_text,
-        instruct_text,
-        "",
-        zero_shot_spk_id=zero_shot_spk_id,
-        stream=False,
-        speed=speed
-    )):
-        torchaudio.save('zero_shot_{}_{}.wav'.format(i,zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
-    cosyvoice.save_spkinfo()
 
     return StreamingResponse(generate_data(model_output))
 
