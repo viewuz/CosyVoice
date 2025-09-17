@@ -16,7 +16,6 @@ import jwt
 
 from modelscope import snapshot_download
 
-
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append('{}/../../..'.format(ROOT_DIR))
 sys.path.append('{}/../../../third_party/Matcha-TTS'.format(ROOT_DIR))
@@ -25,10 +24,9 @@ from cosyvoice.utils.file_utils import load_wav
 
 import torchaudio
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 ALGORITHM = "HS256"
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI()
 # set cross region allowance
 app.add_middleware(
@@ -45,7 +43,7 @@ security = HTTPBearer()
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """JWT 토큰 검증"""
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.PyJWTError:
         raise HTTPException(
@@ -91,10 +89,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--port',
                         type=int,
-                        default=50000)
+                        default=80)
+
+    parser.add_argument('--jwt-secret-key',
+                        type=str,
+                        default='')
+
     args = parser.parse_args()
 
+    if not args.jwt_secret_key:
+        raise ValueError("jwt_secret_key must be set")
+
     try:
+        JWT_SECRET_KEY = str(args.jwt_secret_key)
+
         cosyvoice = CosyVoice2(
             'pretrained_models/CosyVoice2-0.5B',
             load_jit=False,
