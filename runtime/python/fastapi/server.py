@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 import logging
+import shutil
+from pathlib import Path
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
@@ -26,6 +28,7 @@ from cosyvoice.utils.file_utils import load_wav
 import torchaudio
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+DATA_DIR = os.getenv("DATA_DIR", "")
 ALGORITHM = "HS256"
 
 app = FastAPI()
@@ -64,23 +67,45 @@ def generate_data(model_output):
 async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = Form(), prompt_wav: UploadFile = File(),
                             token_payload: dict = Depends(verify_token)
                             ):
-    prompt_speech_16k = load_wav(prompt_wav.file, 16000)
+    # 1) 목소리 모델에 추가
+    prompt_speech_16k = load_wav(str(prompt_wav.file), 16000)
     assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
+
     logging.info(f"Added spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
+    save_audio_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.wav"
+    save_text_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.txt"
+
+    # 2) UploadFile → 로컬 파일로 저장
+    with save_audio_path.open("wb") as buffer:
+        shutil.copyfileobj(prompt_wav.file, buffer)
+
+    save_text_path.write_text(prompt_text, encoding="utf-8")
+
+    logging.info(f"Saved spk: {zero_shot_spk_id}")
+
+    # 3) 목소리 저장
     cosyvoice.save_spkinfo()
+
     return {
         "sample_rate": cosyvoice.sample_rate
     }
 
 
 @app.post("/inference_zero_shot")
-async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = Form(),
+async def inference_zero_shot(tts_text: str = Form(),
+                              zero_shot_spk_id: str = Form(),
                               speed: float = Form(default=1.0),
                               token_payload: dict = Depends(verify_token),
-
                               ):
-    model_output = cosyvoice.inference_zero_shot(tts_text, '', '', zero_shot_spk_id=zero_shot_spk_id, stream=True,
-                                                 speed=speed)
+    model_output = cosyvoice.inference_zero_shot(
+        tts_text,
+        '',
+        '',
+        zero_shot_spk_id=zero_shot_spk_id,
+        stream=True,
+        speed=speed
+    )
+
     return StreamingResponse(generate_data(model_output))
 
 
@@ -91,8 +116,15 @@ async def inference_instruct2(tts_text: str = Form(),
                               speed: float = Form(default=1.0),
                               token_payload: dict = Depends(verify_token)
                               ):
-    model_output = cosyvoice.inference_instruct2(tts_text, instruct_text, "", zero_shot_spk_id=zero_shot_spk_id,
-                                                 stream=True, speed=speed)
+    model_output = cosyvoice.inference_instruct2(
+        tts_text,
+        instruct_text,
+        "",
+        zero_shot_spk_id=zero_shot_spk_id,
+        stream=True,
+        speed=speed
+    )
+
     return StreamingResponse(generate_data(model_output))
 
 
@@ -108,12 +140,21 @@ if __name__ == '__main__':
                         type=str,
                         default='')
 
+    parser.add_argument('--data-dir',
+                        type=str,
+                        default='')
+
     args = parser.parse_args()
 
     if not args.jwt_secret_key:
         raise ValueError("jwt_secret_key must be set")
+    elif not args.data_dir:
+        raise ValueError("data_dir must be set")
 
     JWT_SECRET_KEY = str(args.jwt_secret_key)
+    DATA_DIR = str(args.data_dir)
+
+    Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 
     try:
         payload = {
