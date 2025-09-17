@@ -68,6 +68,7 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
     assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
     cosyvoice.save_spkinfo()
     logging.info(f"Added spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
+
     return {
         "sample_rate": cosyvoice.sample_rate
     }
@@ -77,7 +78,7 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
 async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = Form(),
                               token_payload: dict = Depends(verify_token)
                               ):
-    model_output = cosyvoice.inference_zero_shot(tts_text, '', '', zero_shot_spk_id=zero_shot_spk_id)
+    model_output = cosyvoice.inference_zero_shot(tts_text, '', '', zero_shot_spk_id=zero_shot_spk_id, stream=True)
     return StreamingResponse(generate_data(model_output))
 
 
@@ -85,7 +86,7 @@ async def inference_zero_shot(tts_text: str = Form(), zero_shot_spk_id: str = Fo
 async def inference_instruct2(tts_text: str = Form(), instruct_text: str = Form(), zero_shot_spk_id: str = Form(),
                               token_payload: dict = Depends(verify_token)
                               ):
-    model_output = cosyvoice.inference_instruct2(tts_text, instruct_text, "", zero_shot_spk_id=zero_shot_spk_id)
+    model_output = cosyvoice.inference_instruct2(tts_text, instruct_text, "", zero_shot_spk_id=zero_shot_spk_id, stream=True)
     return StreamingResponse(generate_data(model_output))
 
 
