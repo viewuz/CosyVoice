@@ -27,6 +27,7 @@ from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 
 import torchaudio
+import threading
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 DATA_DIR = os.getenv("DATA_DIR", "")
@@ -106,19 +107,6 @@ async def inference_zero_shot(tts_text: str = Form(),
         speed=speed
     )
 
-    async def save_local():
-        for i, j in enumerate(cosyvoice.inference_zero_shot(
-                tts_text,
-                '',
-                '',
-                zero_shot_spk_id=zero_shot_spk_id,
-                stream=False,
-                speed=speed
-        )):
-            torchaudio.save('zero_shot_{}_{}.wav'.format(i, zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
-
-    a = asyncio.run(save_local())
-
     return StreamingResponse(generate_data(model_output))
 
 
@@ -137,6 +125,17 @@ async def inference_instruct2(tts_text: str = Form(),
         stream=True,
         speed=speed
     )
+
+    for i, j in enumerate(cosyvoice.inference_instruct2(
+        tts_text,
+        instruct_text,
+        "",
+        zero_shot_spk_id=zero_shot_spk_id,
+        stream=False,
+        speed=speed
+    )):
+        torchaudio.save('zero_shot_{}_{}.wav'.format(i,zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
+    cosyvoice.save_spkinfo()
 
     return StreamingResponse(generate_data(model_output))
 
