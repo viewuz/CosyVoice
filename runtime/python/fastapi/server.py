@@ -65,7 +65,12 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
                             token_payload: dict = Depends(verify_token)
                             ):
     prompt_speech_16k = load_wav(prompt_wav.file, 16000)
-    return cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id)
+    assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
+    cosyvoice.save_spkinfo()
+    logging.info(f"Added spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
+    return {
+        "sample_rate": cosyvoice.sample_rate
+    }
 
 
 @app.post("/inference_zero_shot")
