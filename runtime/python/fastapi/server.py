@@ -4,7 +4,7 @@ import argparse
 import logging
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
+import datetime
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,9 +16,8 @@ import jwt
 
 from modelscope import snapshot_download
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append('{}/../../..'.format(ROOT_DIR))
-sys.path.append('{}/../../../third_party/Matcha-TTS'.format(ROOT_DIR))
+sys.path.append('third_party/Matcha-TTS')
+
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 
@@ -99,6 +98,18 @@ if __name__ == '__main__':
 
     if not args.jwt_secret_key:
         raise ValueError("jwt_secret_key must be set")
+
+    try:
+        payload = {
+            "sub": "user",
+            "iat": int(datetime.utcnow().timestamp()),  # 발급 시간
+        }
+
+        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
+
+        logging.info(f"Access Token: {token}")
+    except Exception:
+        raise TypeError('cannot create access token')
 
     try:
         JWT_SECRET_KEY = str(args.jwt_secret_key)
