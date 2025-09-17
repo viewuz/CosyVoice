@@ -12,7 +12,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 import numpy as np
 import jwt
-
+# 세상에서 가장 즐거운 목소리로 노래를 불러줘요오~ 부를르 부를르
+#  curl -X POST "http://150.230.35.143:8000/add_zero_shot_spk" -H "Authorization: Bearer " -F "zero_shot_spk_id=pororo" -F "prompt_text=세상에서 가장 즐거운 목소리로 노래를 불러줘요오~ 부를르 부를르" -F "prompt_wav=@reference.wav"
 from modelscope import snapshot_download
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -100,6 +101,8 @@ if __name__ == '__main__':
     if not args.jwt_secret_key:
         raise ValueError("jwt_secret_key must be set")
 
+    JWT_SECRET_KEY = str(args.jwt_secret_key)
+
     try:
         payload = {
             "sub": "user",
@@ -107,12 +110,10 @@ if __name__ == '__main__':
 
         token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
 
-        logging.info(f"Access Token: {token}")
     except Exception:
         raise TypeError('cannot create access token')
 
     try:
-        JWT_SECRET_KEY = str(args.jwt_secret_key)
 
         cosyvoice = CosyVoice2(
             'pretrained_models/CosyVoice2-0.5B',
@@ -129,5 +130,6 @@ if __name__ == '__main__':
     logging.info(f"Starting server on port {args.port}...")
     logging.info("Server is ready to accept requests!")
     logging.info("=== Server Startup Complete ===")
+    logging.info(f"Access Token: {token}")
 
     uvicorn.run(app, host="0.0.0.0", port=args.port)
