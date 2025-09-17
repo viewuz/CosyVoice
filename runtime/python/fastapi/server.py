@@ -126,4 +126,8 @@ if __name__ == '__main__':
     except Exception:
         raise TypeError('no valid model_type!')
 
+    logging.info(f"Starting server on port {args.port}...")
+    logging.info("Server is ready to accept requests!")
+    logging.info("=== Server Startup Complete ===")
+
     uvicorn.run(app, host="0.0.0.0", port=args.port)
