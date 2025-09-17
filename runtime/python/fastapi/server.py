@@ -66,7 +66,6 @@ async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = F
                             ):
     prompt_speech_16k = load_wav(prompt_wav.file, 16000)
     assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
-    cosyvoice.save_spkinfo()
     logging.info(f"Added spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
 
     return {
