@@ -4,6 +4,7 @@ import argparse
 import logging
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,9 +55,17 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         )
 
 
-def generate_data(model_output):
+def generate_data(model_output, target_sample_rate=None):
+    """오디오 데이터 생성 (샘플링 레이트 변환 지원)"""
     for i, j in enumerate(model_output):
-        audio = (j['tts_speech'].numpy() * (2 ** 15)).astype(np.int16).tobytes()
+        audio_tensor = j['tts_speech']
+
+        # 샘플링 레이트 변환이 필요한 경우
+        if target_sample_rate and target_sample_rate != cosyvoice.sample_rate:
+            audio_tensor = torchaudio.transforms.Resample(cosyvoice.sample_rate, target_sample_rate)(audio_tensor)
+
+        # int16로 변환
+        audio = (audio_tensor.numpy() * (2 ** 15)).astype(np.int16).tobytes()
         yield audio
 
 
@@ -84,6 +93,7 @@ async def inference_zero_shot(tts_text: str = Form(),
                               speed: float = Form(default=1.0),
                               token_payload: dict = Depends(verify_token),
                               stream: bool = Form(default=True),
+                              sample_rate: int = Form(default=None),  # 새로 추가된 파라미터
                               ):
     model_output = cosyvoice.inference_zero_shot(
         tts_text,
@@ -94,7 +104,7 @@ async def inference_zero_shot(tts_text: str = Form(),
         stream=stream,
     )
 
-    return StreamingResponse(generate_data(model_output))
+    return StreamingResponse(generate_data(model_output, sample_rate))
 
 
 @app.post("/inference_instruct")
@@ -104,6 +114,7 @@ async def inference_instruct2(tts_text: str = Form(),
                               speed: float = Form(default=1.0),
                               token_payload: dict = Depends(verify_token),
                               stream: bool = Form(default=True),
+                              sample_rate: int = Form(default=None),  # 새로 추가된 파라미터
 
                               ):
     model_output = cosyvoice.inference_instruct2(
@@ -115,7 +126,7 @@ async def inference_instruct2(tts_text: str = Form(),
         speed=speed
     )
 
-    return StreamingResponse(generate_data(model_output))
+    return StreamingResponse(generate_data(model_output, sample_rate))
 
 
 if __name__ == '__main__':
