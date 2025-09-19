@@ -1,10 +1,7 @@
-import asyncio
 import os
 import sys
 import argparse
 import logging
-import shutil
-from pathlib import Path
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 from fastapi import FastAPI, UploadFile, Depends, Form, File, HTTPException, status
@@ -15,11 +12,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 import numpy as np
 import jwt
-# 세상에서 가장 즐거운 목소리로 노래를 불러줘요오~ 부를르 부를르
-#  curl -X POST "http://150.230.35.143:8000/add_zero_shot_spk" -H "Authorization: Bearer " -F "zero_shot_spk_id=pororo" -F "prompt_text=세상에서 가장 즐거운 목소리로 노래를 불러줘요오~ 부를르 부를르" -F "prompt_wav=@reference.wav"
 from modelscope import snapshot_download
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 sys.path.append('{}/../../..'.format(ROOT_DIR))
 sys.path.append('{}/../../../third_party/Matcha-TTS'.format(ROOT_DIR))
 
@@ -27,10 +23,9 @@ from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 
 import torchaudio
-import threading
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
-DATA_DIR = os.getenv("DATA_DIR", "")
+JWT_SECRET_KEY: str
+
 ALGORITHM = "HS256"
 
 app = FastAPI()
@@ -60,31 +55,22 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 
 def generate_data(model_output):
-    for i in model_output:
-        tts_audio = (i['tts_speech'].numpy() * (2 ** 15)).astype(np.int16).tobytes()
-        yield tts_audio
+    for i, j in enumerate(model_output):
+        audio = (j['tts_speech'].numpy() * (2 ** 15)).astype(np.int16).tobytes()
+        yield audio
 
 
 @app.post("/add_zero_shot_spk")
 async def add_zero_shot_spk(zero_shot_spk_id: str = Form(), prompt_text: str = Form(), prompt_wav: UploadFile = File(),
                             token_payload: dict = Depends(verify_token)
                             ):
-    logging.info(f"Add spk: {zero_shot_spk_id}, prompt_text: {prompt_text}")
-    save_audio_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.wav"
-    save_text_path = Path(DATA_DIR) / f"{zero_shot_spk_id}.txt"
+    logging.info(f"Add spk: {zero_shot_spk_id}, text: {prompt_text}")
 
-    # 2) UploadFile → 로컬 파일로 저장
-    with save_audio_path.open("wb") as buffer:
-        shutil.copyfileobj(prompt_wav.file, buffer)
-
-    save_text_path.write_text(prompt_text, encoding="utf-8")
-
-    prompt_speech_16k = load_wav(str(save_audio_path), 16000)
+    prompt_speech_16k = load_wav(prompt_wav.file, 16000)
     assert cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, zero_shot_spk_id) is True
 
-    logging.info(f"Saved spk: {zero_shot_spk_id}")
+    logging.info(f"Added spk: {zero_shot_spk_id}")
 
-    # 3) 목소리 저장
     cosyvoice.save_spkinfo()
 
     return {
@@ -97,26 +83,16 @@ async def inference_zero_shot(tts_text: str = Form(),
                               zero_shot_spk_id: str = Form(),
                               speed: float = Form(default=1.0),
                               token_payload: dict = Depends(verify_token),
+                              stream: bool = Form(default=True),
                               ):
     model_output = cosyvoice.inference_zero_shot(
         tts_text,
         '',
         '',
         zero_shot_spk_id=zero_shot_spk_id,
-        stream=True,
-        speed=speed
+        speed=speed,
+        stream=stream,
     )
-
-    for i, j in enumerate(cosyvoice.inference_zero_shot(
-        tts_text,
-        '',
-        '',
-        zero_shot_spk_id=zero_shot_spk_id,
-        stream=False,
-        speed=speed
-    )):
-        torchaudio.save('zero_shot_{}_{}.wav'.format(i, zero_shot_spk_id), j['tts_speech'], cosyvoice.sample_rate)
-
 
     return StreamingResponse(generate_data(model_output))
 
@@ -126,17 +102,18 @@ async def inference_instruct2(tts_text: str = Form(),
                               instruct_text: str = Form(),
                               zero_shot_spk_id: str = Form(),
                               speed: float = Form(default=1.0),
-                              token_payload: dict = Depends(verify_token)
+                              token_payload: dict = Depends(verify_token),
+                              stream: bool = Form(default=True),
+
                               ):
     model_output = cosyvoice.inference_instruct2(
         tts_text,
         instruct_text,
         "",
         zero_shot_spk_id=zero_shot_spk_id,
-        stream=True,
+        stream=stream,
         speed=speed
     )
-
 
     return StreamingResponse(generate_data(model_output))
 
@@ -153,21 +130,16 @@ if __name__ == '__main__':
                         type=str,
                         default='')
 
-    parser.add_argument('--data-dir',
-                        type=str,
-                        default='')
+    parser.add_argument('--trt-concurrent',
+                        type=int,
+                        default=1)
 
     args = parser.parse_args()
 
     if not args.jwt_secret_key:
         raise ValueError("jwt_secret_key must be set")
-    elif not args.data_dir:
-        raise ValueError("data_dir must be set")
 
     JWT_SECRET_KEY = str(args.jwt_secret_key)
-    DATA_DIR = str(args.data_dir)
-
-    Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 
     try:
         payload = {
@@ -180,15 +152,14 @@ if __name__ == '__main__':
         raise TypeError('cannot create access token')
 
     try:
-
         cosyvoice = CosyVoice2(
             'pretrained_models/CosyVoice2-0.5B',
-            load_jit=False,
-            load_trt=False,
+            load_jit=True,
+            load_trt=True,
             load_vllm=False,
-            fp16=False,
+            trt_concurrent=int(args.trt_concurrent),
+            fp16=True,
         )
-
     except Exception:
         raise TypeError('no valid model_type!')
 
